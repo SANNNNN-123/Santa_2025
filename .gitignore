@@ -1,0 +1,4 @@
+myenv/
+.env
+exploration/
+__pycache__/
