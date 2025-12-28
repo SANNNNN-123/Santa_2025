@@ -1,3 +1,4 @@
+//%%writefile a.cpp
 // Tree Packer v21 - ENHANCED v19 with SWAP MOVES + MULTI-START
 // All n values (1-200) processed in parallel + aggressive exploration
 // NEW: Swap move operator, multi-angle restarts, higher temperature SA
