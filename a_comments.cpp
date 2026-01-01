@@ -13,7 +13,7 @@ using namespace std;
 // ============================================================================
 constexpr int MAX_N = 200;  // Maximum number of trees to pack (n=1 to 200)
 constexpr int NV = 15;      // Number of vertices defining each Christmas tree polygon
-constexpr double PI = 3.14159265358979323846;
+constexpr double PI = 3.14159265358979323846; // Pi constant to calculate the degree and radians for rotation  deg * PI / 180.0L
 
 // Tree shape definition: 15 vertices defining the Christmas tree polygon
 // These are the base coordinates that get rotated and translated for each tree
@@ -38,10 +38,23 @@ struct FastRNG {
     // Rotate left operation
     inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
     
-    // Generate next random number
+    // Generate next random number using xoshiro128++ algorithm
+    // xoshiro stands for XOR, SHIFT, ROTATE
+    // It is a very fast, high-quality PRNG used in simulations
     inline uint64_t next() {
-        uint64_t s0 = s[0], s1 = s[1], r = s0 + s1;
-        s1 ^= s0; s[0] = rotl(s0, 24) ^ s1 ^ (s1 << 16); s[1] = rotl(s1, 37);
+        uint64_t s0 = s[0], s1 = s[1];
+        // uint64_t r = s0 + s1; // Original xoshiro128+ calculation
+        uint64_t r = rotl(s0 + s1, 17) + s0;  // xoshiro128++ calculation
+
+        s1 ^= s0; // XOR
+        
+        // original code: 
+        // s[0] = rotl(s0, 24) ^ s1 ^ (s1 << 16); 
+        // s[1] = rotl(s1, 37);
+
+        s[0] = rotl(s0, 49) ^ s1 ^ (s1 << 21); // Rotate, XOR, Shift (v++)
+        s[1] = rotl(s1, 28); // Rotate (v++)
+
         return r;
     }
     
