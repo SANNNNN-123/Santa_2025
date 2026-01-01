@@ -36,7 +36,17 @@ struct FastRNG {
     }
     
     // Rotate left operation
-    inline uint64_t rotl(uint64_t x, int k) { return (x << k) | (x >> (64 - k)); }
+    uint64_t rotl(uint64_t x, int k) {
+        // Step 1: Push beads to the left (some fall off)
+        uint64_t left_part = (x << k);
+        
+        // Step 2: Find the beads that would have fallen off 
+        // by looking at the other end (64 - k)
+        uint64_t right_part = (x >> (64 - k));
+        
+        // Step 3: Glue them back together with OR (|)
+        return left_part | right_part;
+    }
     
     // Generate next random number using xoshiro128++ algorithm
     // xoshiro stands for XOR, SHIFT, ROTATE
