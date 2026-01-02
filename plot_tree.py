@@ -412,3 +412,258 @@ for pt, is_inside, crossings, count in examples[:4]:
     parity = "ODD" if count % 2 == 1 else "EVEN"
     print(f"  - Point {pt}: {result} ({count} crossings, {parity})")
 print(f"\nRule: ODD crossings = INSIDE, EVEN crossings = OUTSIDE")
+
+# ============================================================================
+# OVERLAP DETECTION VISUALIZATION
+# ============================================================================
+
+# Transform tree from base shape to position (cx, cy) with rotation
+def getPoly(cx, cy, deg, px, py):
+    """Transform tree and fill px, py arrays"""
+    rad = deg * math.pi / 180.0
+    s = math.sin(rad)
+    c = math.cos(rad)
+    
+    for i in range(len(TX)):
+        x_rot = TX[i] * c - TY[i] * s
+        y_rot = TX[i] * s + TY[i] * c
+        px[i] = x_rot + cx
+        py[i] = y_rot + cy
+
+# Create two tree configurations
+# Tree A: at position (1.0, 1.0), no rotation
+px_a = [0] * 15
+py_a = [0] * 15
+getPoly(1.0, 1.0, 0, px_a, py_a)
+
+# Tree B: overlapping case - close to Tree A
+px_b_overlap = [0] * 15
+py_b_overlap = [0] * 15
+getPoly(1.3, 1.0, 15, px_b_overlap, py_b_overlap)
+
+# Tree B: non-overlapping case - far from Tree A
+px_b_no_overlap = [0] * 15
+py_b_no_overlap = [0] * 15
+getPoly(2.0, 1.0, 30, px_b_no_overlap, py_b_no_overlap)
+
+# Check overlap by testing if any vertex of one tree is inside the other
+def check_overlap_vertices(px_a, py_a, px_b, py_b):
+    """Check if trees overlap by testing vertices"""
+    overlap_found = False
+    overlapping_vertex = None
+    overlapping_tree = None
+    
+    # Check if any vertex of Tree A is inside Tree B
+    for i in range(15):
+        is_inside, crossings = pip(px_a[i], py_a[i], px_b, py_b)
+        if is_inside:
+            overlap_found = True
+            overlapping_vertex = (px_a[i], py_a[i], i)
+            overlapping_tree = "A"
+            break
+    
+    # Check if any vertex of Tree B is inside Tree A
+    if not overlap_found:
+        for i in range(15):
+            is_inside, crossings = pip(px_b[i], py_b[i], px_a, py_a)
+            if is_inside:
+                overlap_found = True
+                overlapping_vertex = (px_b[i], py_b[i], i)
+                overlapping_tree = "B"
+                break
+    
+    return overlap_found, overlapping_vertex, overlapping_tree
+
+# Create visualization
+fig3, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(18, 16))
+
+# ============================================================================
+# TOP-LEFT: Overlapping Trees - Overview
+# ============================================================================
+ax1.plot(px_a + [px_a[0]], py_a + [py_a[0]], 'g-', linewidth=2, label='Tree A')
+ax1.fill(px_a + [px_a[0]], py_a + [py_a[0]], 'g', alpha=0.3)
+ax1.plot(px_b_overlap + [px_b_overlap[0]], py_b_overlap + [py_b_overlap[0]], 
+         'b-', linewidth=2, label='Tree B')
+ax1.fill(px_b_overlap + [px_b_overlap[0]], py_b_overlap + [py_b_overlap[0]], 
+         'b', alpha=0.3)
+ax1.scatter(px_a, py_a, color='darkgreen', s=30, zorder=3, alpha=0.6)
+ax1.scatter(px_b_overlap, py_b_overlap, color='darkblue', s=30, zorder=3, alpha=0.6)
+
+# Find overlapping vertex
+overlap, ov_vertex, ov_tree = check_overlap_vertices(px_a, py_a, px_b_overlap, py_b_overlap)
+if overlap:
+    ax1.scatter([ov_vertex[0]], [ov_vertex[1]], color='red', s=300, 
+               marker='*', zorder=10, edgecolors='black', linewidths=2,
+               label=f'Overlapping Vertex (Tree {ov_tree})')
+
+ax1.set_title("OVERLAPPING TREES\nTree B overlaps with Tree A", fontsize=14, fontweight='bold', color='red')
+ax1.axis('equal')
+ax1.grid(True, alpha=0.3)
+ax1.legend(loc='upper right')
+ax1.text(0.02, 0.98, 'OVERLAP DETECTED!', transform=ax1.transAxes,
+         fontsize=16, fontweight='bold', color='red',
+         bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.8),
+         verticalalignment='top')
+
+# ============================================================================
+# TOP-RIGHT: Non-Overlapping Trees - Overview
+# ============================================================================
+ax2.plot(px_a + [px_a[0]], py_a + [py_a[0]], 'g-', linewidth=2, label='Tree A')
+ax2.fill(px_a + [px_a[0]], py_a + [py_a[0]], 'g', alpha=0.3)
+ax2.plot(px_b_no_overlap + [px_b_no_overlap[0]], py_b_no_overlap + [py_b_no_overlap[0]], 
+         'b-', linewidth=2, label='Tree B')
+ax2.fill(px_b_no_overlap + [px_b_no_overlap[0]], py_b_no_overlap + [py_b_no_overlap[0]], 
+         'b', alpha=0.3)
+ax2.scatter(px_a, py_a, color='darkgreen', s=30, zorder=3, alpha=0.6)
+ax2.scatter(px_b_no_overlap, py_b_no_overlap, color='darkblue', s=30, zorder=3, alpha=0.6)
+
+overlap2, _, _ = check_overlap_vertices(px_a, py_a, px_b_no_overlap, py_b_no_overlap)
+
+ax2.set_title("NON-OVERLAPPING TREES\nTrees are separated", fontsize=14, fontweight='bold', color='green')
+ax2.axis('equal')
+ax2.grid(True, alpha=0.3)
+ax2.legend(loc='upper right')
+ax2.text(0.02, 0.98, 'NO OVERLAP', transform=ax2.transAxes,
+         fontsize=16, fontweight='bold', color='green',
+         bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8),
+         verticalalignment='top')
+
+# ============================================================================
+# BOTTOM-LEFT: Ray Casting Check - Overlapping Case
+# ============================================================================
+# Find a vertex of Tree B that's inside Tree A
+test_vertex_idx = None
+test_vertex_x = None
+test_vertex_y = None
+test_crossings = None
+
+for i in range(15):
+    is_inside, crossings = pip(px_b_overlap[i], py_b_overlap[i], px_a, py_a)
+    if is_inside:
+        test_vertex_idx = i
+        test_vertex_x = px_b_overlap[i]
+        test_vertex_y = py_b_overlap[i]
+        test_crossings = crossings
+        break
+
+if test_vertex_idx is not None:
+    # Draw Tree A
+    ax3.plot(px_a + [px_a[0]], py_a + [py_a[0]], 'g-', linewidth=2, label='Tree A')
+    ax3.fill(px_a + [px_a[0]], py_a + [py_a[0]], 'g', alpha=0.2)
+    ax3.scatter(px_a, py_a, color='darkgreen', s=30, zorder=3, alpha=0.5)
+    
+    # Draw Tree B (lighter)
+    ax3.plot(px_b_overlap + [px_b_overlap[0]], py_b_overlap + [py_b_overlap[0]], 
+             'b--', linewidth=1.5, alpha=0.5, label='Tree B')
+    ax3.scatter(px_b_overlap, py_b_overlap, color='lightblue', s=20, zorder=2, alpha=0.4)
+    
+    # Highlight the test vertex
+    ax3.scatter([test_vertex_x], [test_vertex_y], color='red', s=400, 
+               marker='*', zorder=10, edgecolors='black', linewidths=2,
+               label=f'Tree B Vertex {test_vertex_idx}')
+    
+    # Draw ray from test vertex
+    ray_end = max(px_a) + 0.5
+    ax3.plot([test_vertex_x, ray_end], [test_vertex_y, test_vertex_y], 
+             'r--', linewidth=2.5, alpha=0.8, label='Ray (shoots right)')
+    
+    # Mark crossing points
+    if test_crossings:
+        for idx, (x_cross, y_cross) in enumerate(test_crossings, 1):
+            ax3.scatter([x_cross], [y_cross], color='orange', s=250, marker='X', 
+                       zorder=9, edgecolors='red', linewidths=2)
+            ax3.annotate(f'{idx}', (x_cross, y_cross), 
+                        xytext=(10, 10), textcoords='offset points',
+                        fontsize=14, fontweight='bold', color='darkred',
+                        bbox=dict(boxstyle='round,pad=0.4', facecolor='yellow', alpha=0.8))
+    
+    # Result annotation
+    count = len(test_crossings) if test_crossings else 0
+    result_text = "INSIDE" if count % 2 == 1 else "OUTSIDE"
+    color = 'green' if count % 2 == 1 else 'red'
+    parity = "ODD" if count % 2 == 1 else "EVEN"
+    
+    ax3.text(0.5, 0.95, f'Vertex of Tree B inside Tree A?\nCrossings: {count} ({parity})\nResult: {result_text} → OVERLAP!', 
+             transform=ax3.transAxes, fontsize=12, fontweight='bold', 
+             bbox=dict(boxstyle='round', facecolor=color, alpha=0.3),
+             verticalalignment='top', horizontalalignment='center')
+    
+    ax3.set_title(f"Ray Casting Check: Overlapping Case\nTesting Tree B vertex {test_vertex_idx} against Tree A", 
+                  fontsize=12, fontweight='bold')
+    ax3.axis('equal')
+    ax3.grid(True, alpha=0.3)
+    ax3.legend(loc='upper left', fontsize=9)
+
+# ============================================================================
+# BOTTOM-RIGHT: Ray Casting Check - Non-Overlapping Case
+# ============================================================================
+# Test a vertex of Tree B that's outside Tree A
+test_vertex_idx2 = 0  # Use first vertex
+test_vertex_x2 = px_b_no_overlap[test_vertex_idx2]
+test_vertex_y2 = py_b_no_overlap[test_vertex_idx2]
+is_inside2, test_crossings2 = pip(test_vertex_x2, test_vertex_y2, px_a, py_a)
+
+# Draw Tree A
+ax4.plot(px_a + [px_a[0]], py_a + [py_a[0]], 'g-', linewidth=2, label='Tree A')
+ax4.fill(px_a + [px_a[0]], py_a + [py_a[0]], 'g', alpha=0.2)
+ax4.scatter(px_a, py_a, color='darkgreen', s=30, zorder=3, alpha=0.5)
+
+# Draw Tree B (lighter)
+ax4.plot(px_b_no_overlap + [px_b_no_overlap[0]], py_b_no_overlap + [py_b_no_overlap[0]], 
+         'b--', linewidth=1.5, alpha=0.5, label='Tree B')
+ax4.scatter(px_b_no_overlap, py_b_no_overlap, color='lightblue', s=20, zorder=2, alpha=0.4)
+
+# Highlight the test vertex
+ax4.scatter([test_vertex_x2], [test_vertex_y2], color='blue', s=400, 
+           marker='*', zorder=10, edgecolors='black', linewidths=2,
+           label=f'Tree B Vertex {test_vertex_idx2}')
+
+# Draw ray from test vertex
+ray_end2 = max(px_a) + 0.5
+ax4.plot([test_vertex_x2, ray_end2], [test_vertex_y2, test_vertex_y2], 
+         'r--', linewidth=2.5, alpha=0.8, label='Ray (shoots right)')
+
+# Mark crossing points (if any)
+if test_crossings2:
+    for idx, (x_cross, y_cross) in enumerate(test_crossings2, 1):
+        ax4.scatter([x_cross], [y_cross], color='orange', s=250, marker='X', 
+                   zorder=9, edgecolors='red', linewidths=2)
+        ax4.annotate(f'{idx}', (x_cross, y_cross), 
+                    xytext=(10, 10), textcoords='offset points',
+                    fontsize=14, fontweight='bold', color='darkred',
+                    bbox=dict(boxstyle='round,pad=0.4', facecolor='yellow', alpha=0.8))
+
+# Result annotation
+count2 = len(test_crossings2) if test_crossings2 else 0
+result_text2 = "INSIDE" if count2 % 2 == 1 else "OUTSIDE"
+color2 = 'green' if count2 % 2 == 1 else 'red'
+parity2 = "ODD" if count2 % 2 == 1 else "EVEN"
+
+ax4.text(0.5, 0.95, f'Vertex of Tree B inside Tree A?\nCrossings: {count2} ({parity2})\nResult: {result_text2} → NO OVERLAP', 
+         transform=ax4.transAxes, fontsize=12, fontweight='bold', 
+         bbox=dict(boxstyle='round', facecolor=color2, alpha=0.3),
+         verticalalignment='top', horizontalalignment='center')
+
+ax4.set_title(f"Ray Casting Check: Non-Overlapping Case\nTesting Tree B vertex {test_vertex_idx2} against Tree A", 
+              fontsize=12, fontweight='bold')
+ax4.axis('equal')
+ax4.grid(True, alpha=0.3)
+ax4.legend(loc='upper left', fontsize=9)
+
+plt.tight_layout()
+plt.savefig('overlap_detection_visualization.png', dpi=150, bbox_inches='tight')
+print("\nOverlap detection visualization saved as overlap_detection_visualization.png")
+print("\n" + "="*60)
+print("HOW RAY CASTING DETECTS OVERLAP:")
+print("="*60)
+print("\n1. For each vertex (corner) of Tree B:")
+print("   - Use ray casting to check if it's inside Tree A")
+print("   - If ODD crossings → vertex is INSIDE → OVERLAP!")
+print("   - If EVEN crossings → vertex is OUTSIDE → keep checking")
+print("\n2. Also check vertices of Tree A inside Tree B")
+print("\n3. If ANY vertex is inside the other tree → OVERLAP")
+print("\n4. The visualization shows:")
+print("   - Top-left: Overlapping trees (red star = overlapping vertex)")
+print("   - Top-right: Non-overlapping trees")
+print("   - Bottom-left: Ray casting check for overlapping case")
+print("   - Bottom-right: Ray casting check for non-overlapping case")
